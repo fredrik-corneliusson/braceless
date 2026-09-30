@@ -4,24 +4,40 @@ interface ParserNode {
   children: Record<string, unknown[]>;
 }
 
-export type JavaNodeKind = 'other' | 'method' | 'if' | 'for' | 'while' | 'do' | 'return';
+export type JavaNodeKind = 'other' | 'method' | 'block' | 'statement' |
+  'if' | 'expression' | 'for' | 'while' | 'do' | 'return';
 
-export interface JavaSyntaxNode {
-  kind: JavaNodeKind;
+export interface SourceRange {
   startOffset: number;
-  endOffset: number; // Exclusive, like VS Code document offsets.
+  endOffset: number;
+}
+
+export interface JavaSyntaxNode extends SourceRange {
+  kind: JavaNodeKind;
   children: JavaSyntaxNode[];
+  condition?: SourceRange;
+  branches?: SourceRange[];
 }
 
 const kinds: Record<string, JavaNodeKind> = {
   methodDeclaration: 'method',
+  block: 'block',
+  blockStatement: 'statement',
   ifStatement: 'if',
+  expressionStatement: 'expression',
   basicForStatement: 'for',
   enhancedForStatement: 'for',
   whileStatement: 'while',
   doStatement: 'do',
   returnStatement: 'return',
 };
+
+function range(node: ParserNode): SourceRange {
+  return {
+    startOffset: node.location.startOffset ?? 0,
+    endOffset: (node.location.endOffset ?? -1) + 1,
+  };
+}
 
 function toSyntaxNode(node: ParserNode): JavaSyntaxNode {
   const children = Object.values(node.children)
@@ -37,11 +53,16 @@ function toSyntaxNode(node: ParserNode): JavaSyntaxNode {
     ? node.location.endOffset! + 1
     : children.at(-1)?.endOffset ?? startOffset;
 
+  const condition = node.name === 'ifStatement' && node.children.expression?.[0];
+  const branches = node.name === 'ifStatement' ? node.children.statement : undefined;
+
   return {
     kind: kinds[node.name] ?? 'other',
     startOffset,
     endOffset,
     children,
+    ...(condition ? { condition: range(condition as ParserNode) } : {}),
+    ...(branches ? { branches: branches.map((branch) => range(branch as ParserNode)) } : {}),
   };
 }
 

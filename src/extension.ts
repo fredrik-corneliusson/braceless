@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
-import { parseJava, JavaSyntaxNode } from './javaParser';
+import { parseJava } from './javaParser';
+import { renderPseudo } from './pseudoRenderer';
 
 const SCHEME = 'java-pseudocode';
 const COMMAND = 'javaPseudocode.open';
 
 export function activate(context: vscode.ExtensionContext): void {
   const sources = new Map<string, vscode.Uri>();
-  const syntaxTrees = new Map<string, JavaSyntaxNode>();
   const changed = new vscode.EventEmitter<vscode.Uri>();
 
   const provider: vscode.TextDocumentContentProvider = {
@@ -18,10 +18,10 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       const text = (await vscode.workspace.openTextDocument(source)).getText();
       try {
-        syntaxTrees.set(uri.toString(), await parseJava(text));
+        const tree = await parseJava(text);
+        return renderPseudo(text, tree);
       } catch {
         // A Java file may be incomplete while it is being edited.
-        syntaxTrees.delete(uri.toString());
       }
       return text;
     },

@@ -2,9 +2,9 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const Module = require('node:module');
 
-test('opens the unchanged Java source in a virtual document beside the editor', async () => {
+test('opens rendered Java beside the editor and refreshes on source changes', async () => {
   const sourceUri = { toString: () => 'file:///Order.java' };
-  let sourceText = 'class Order {}\n';
+  let sourceText = 'class Order {\n    int value() {\n        return 1;\n    }\n}\n';
   const source = { uri: sourceUri, languageId: 'java', getText: () => sourceText };
   let command;
   let provider;
@@ -61,10 +61,12 @@ test('opens the unchanged Java source in a virtual document beside the editor', 
   await command();
   assert.deepEqual(opened.options, { viewColumn: 2, preview: false });
   assert.match(opened.document.uri.toString(), /^java-pseudocode:/);
-  assert.equal(await provider.provideTextDocumentContent(opened.document.uri), sourceText);
+  assert.equal(await provider.provideTextDocumentContent(opened.document.uri),
+    'class Order {\n    int value():\n        return 1\n}\n');
 
-  sourceText = 'class Order { int id; }\n';
+  sourceText = 'class Order {\n    int value() {\n        return 2;\n    }\n}\n';
   onSourceChange({ document: source });
   assert.equal(notification.toString(), opened.document.uri.toString());
-  assert.equal(await provider.provideTextDocumentContent(opened.document.uri), sourceText);
+  assert.equal(await provider.provideTextDocumentContent(opened.document.uri),
+    'class Order {\n    int value():\n        return 2\n}\n');
 });
