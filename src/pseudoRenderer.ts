@@ -60,7 +60,7 @@ function renderStatement(source: string, statement: JavaSyntaxNode, indent: stri
     }
     return result;
   }
-  if (node.kind === 'return' || node.kind === 'expression') {
+  if (node.kind === 'return' || node.kind === 'expression' || node.kind === 'variable') {
     return indent + source.slice(node.startOffset, node.endOffset).trim().replace(/;$/, '');
   }
   if (node.kind === 'block') {
@@ -108,20 +108,23 @@ function renderMethod(source: string, method: JavaSyntaxNode): string {
 }
 
 export function renderPseudo(source: string, tree: JavaSyntaxNode): string {
-  const methods: JavaSyntaxNode[] = [];
-  const collectMethods = (node: JavaSyntaxNode): void => {
+  const declarations: JavaSyntaxNode[] = [];
+  const collectDeclarations = (node: JavaSyntaxNode): void => {
     for (const child of node.children) {
-      if (child.kind === 'method') methods.push(child);
-      else collectMethods(child);
+      if (child.kind === 'method' || child.kind === 'field') declarations.push(child);
+      else collectDeclarations(child);
     }
   };
-  collectMethods(tree);
-  methods.sort((a, b) => a.startOffset - b.startOffset);
+  collectDeclarations(tree);
+  declarations.sort((a, b) => a.startOffset - b.startOffset);
   let result = '';
   let cursor = 0;
-  for (const method of methods) {
-    result += source.slice(cursor, method.startOffset) + renderMethod(source, method);
-    cursor = method.endOffset;
+  for (const declaration of declarations) {
+    result += source.slice(cursor, declaration.startOffset) +
+      (declaration.kind === 'method'
+        ? renderMethod(source, declaration)
+        : source.slice(declaration.startOffset, declaration.endOffset).replace(/;$/, ''));
+    cursor = declaration.endOffset;
   }
   return result + source.slice(cursor);
 }

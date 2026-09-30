@@ -5,7 +5,7 @@ interface ParserNode {
 }
 
 export type JavaNodeKind = 'other' | 'method' | 'block' | 'statement' |
-  'if' | 'expression' | 'for' | 'foreach' | 'while' | 'do' | 'return';
+  'if' | 'expression' | 'variable' | 'field' | 'for' | 'foreach' | 'while' | 'do' | 'return';
 
 export interface SourceRange {
   startOffset: number;
@@ -25,6 +25,8 @@ const kinds: Record<string, JavaNodeKind> = {
   blockStatement: 'statement',
   ifStatement: 'if',
   expressionStatement: 'expression',
+  localVariableDeclarationStatement: 'variable',
+  fieldDeclaration: 'field',
   basicForStatement: 'for',
   enhancedForStatement: 'foreach',
   whileStatement: 'while',

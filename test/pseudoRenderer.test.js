@@ -52,6 +52,56 @@ test('renders expression statements without changing expressions', async () => {
 }`);
 });
 
+test('renders local variable declarations with types and initializers intact', async () => {
+  const source = `class Example {
+    void run() {
+        int count = 0, limit = 10;
+        java.util.List<String> names = getNames();
+        var first = names.get(0);
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    void run():
+        int count = 0, limit = 10
+        java.util.List<String> names = getNames()
+        var first = names.get(0)
+}`);
+});
+
+test('renders field declarations while preserving modifiers and expressions', async () => {
+  const source = `class Example {
+    private final int limit = computeLimit();
+    String label;
+
+    int value() {
+        return limit;
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    private final int limit = computeLimit()
+    String label
+
+    int value():
+        return limit
+}`);
+});
+
+test('renders simple and compound assignments without changing expressions', async () => {
+  const source = `class Example {
+    void run() {
+        count = source.getCount();
+        count += Math.max(1, delta);
+        values[index] = count;
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    void run():
+        count = source.getCount()
+        count += Math.max(1, delta)
+        values[index] = count
+}`);
+});
+
 test('renders unbraced if and else statements', async () => {
   const source = `class Example {
     int choose(boolean ready) {
@@ -125,7 +175,7 @@ test('renders unbraced enhanced for and while bodies', async () => {
 }`);
 });
 
-test('preserves unsupported declarations and loops as readable Java', async () => {
+test('preserves unsupported basic for loops as readable Java', async () => {
   const source = `class Example {
     int count(int limit) {
         int total = 0;
@@ -137,7 +187,7 @@ test('preserves unsupported declarations and loops as readable Java', async () =
 }`;
   assert.equal(await render(source), `class Example {
     int count(int limit):
-        int total = 0;
+        int total = 0
         for (int i = 0; i < limit; i++) {
             total += i;
         }
