@@ -38,6 +38,26 @@ function raw(source: string, range: SourceRange, indent: string): string {
   }).join('\n');
 }
 
+function gapLines(source: string, startOffset: number, endOffset: number, indent: string): string[] {
+  const gap = source.slice(startOffset, endOffset);
+  const parts = gap.split(/\r?\n/);
+  const lines: string[] = [];
+  let offset = startOffset;
+  for (let index = 0; index < parts.length; index++) {
+    const part = parts[index];
+    if (part.trim()) {
+      lines.push(raw(source, { startOffset: offset, endOffset: offset + part.length }, indent));
+    } else if (index > 0 && index < parts.length - 1) {
+      lines.push('');
+    }
+    offset += part.length;
+    if (index < parts.length - 1) {
+      offset += source.startsWith('\r\n', offset) ? 2 : 1;
+    }
+  }
+  return lines;
+}
+
 function renderStatement(source: string, statement: JavaSyntaxNode, indent: string): string {
   const node = unwrap(statement);
   if ((node.kind === 'if' || node.kind === 'foreach' || node.kind === 'while') &&
@@ -83,17 +103,11 @@ function renderBlock(source: string, block: JavaSyntaxNode, indent: string): str
   const lines: string[] = [];
   let cursor = block.startOffset + 1;
   for (const statement of statements) {
-    const gap = source.slice(cursor, statement.startOffset);
-    if (gap.trim()) {
-      lines.push(raw(source, { startOffset: cursor, endOffset: statement.startOffset }, indent));
-    }
+    lines.push(...gapLines(source, cursor, statement.startOffset, indent));
     lines.push(renderStatement(source, statement, indent));
     cursor = statement.endOffset;
   }
-  const gap = source.slice(cursor, block.endOffset - 1);
-  if (gap.trim()) {
-    lines.push(raw(source, { startOffset: cursor, endOffset: block.endOffset - 1 }, indent));
-  }
+  lines.push(...gapLines(source, cursor, block.endOffset - 1, indent));
   return lines.join('\n');
 }
 
@@ -104,7 +118,9 @@ function renderMethod(source: string, method: JavaSyntaxNode): string {
   const indent = source.slice(lineStart, method.startOffset).match(/^\s*/)?.[0] ?? '';
   const header = source.slice(method.startOffset, block.startOffset).trimEnd();
   const body = renderBlock(source, block, indent + INDENT);
-  return `${header}:${body ? `\n${body}` : ''}`;
+  const hasBlankBodyRows = source.slice(block.startOffset + 1, block.endOffset - 1)
+    .split(/\r?\n/).length > 2;
+  return `${header}:${body || hasBlankBodyRows ? `\n${body}` : ''}`;
 }
 
 export function renderPseudo(source: string, tree: JavaSyntaxNode): string {

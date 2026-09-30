@@ -210,3 +210,66 @@ test('preserves comments between supported statements', async () => {
         return 1
 }`);
 });
+
+test('preserves blank lines between rendered statements and blocks', async () => {
+  const source = `class Example {
+    int run(boolean ready) {
+        int count = 0;
+
+        if (ready) {
+            count = 1;
+
+            count += 2;
+        }
+
+        return count;
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    int run(boolean ready):
+        int count = 0
+
+        if ready:
+            count = 1
+
+            count += 2
+
+        return count
+}`);
+});
+
+test('preserves blank lines around comments and at block boundaries', async () => {
+  const source = `class Example {
+    void run() {
+
+        call();
+
+        // Keep this comment.
+
+        callAgain();
+
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    void run():
+
+        call()
+
+        // Keep this comment.
+
+        callAgain()
+
+}`);
+});
+
+test('preserves blank lines in an otherwise empty method', async () => {
+  const source = `class Example {
+    void run() {
+
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    void run():
+
+}`);
+});
