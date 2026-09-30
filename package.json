@@ -1,6 +1,6 @@
 {
   "name": "java-pseudocode-view",
-  "displayName": "Java Pseudocode View",
+  "displayName": "Braceless",
   "description": "A read-only, Python-like view of Java source code.",
   "version": "0.0.1",
   "private": true,
@@ -18,8 +18,8 @@
     "commands": [
       {
         "command": "javaPseudocode.open",
-        "title": "Open Pseudocode",
-        "category": "Java Pseudo"
+        "title": "Open",
+        "category": "Braceless"
       }
     ]
   },
