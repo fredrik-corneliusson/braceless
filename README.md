@@ -4,4 +4,4 @@ A VS Code extension project for the read-only Java pseudocode view described in 
 
 ## Development
 
-Requires Node.js LTS, npm, and VS Code. In Git Bash, run `npm install` and `npm run compile`. Open a new Git Bash terminal after installing Node.js, or run `source ~/.bashrc` in an existing terminal if `npm` is not found. Restart VS Code before using **F5** so its build task receives the updated `PATH`; **F5** launches the Extension Development Host. The **Java Pseudo: Open Pseudocode** command is registered, but the view itself is not implemented yet.
+Requires Node.js LTS, npm, and VS Code. Run `npm install`, `npm run compile`, and `npm test`. Press **F5** in VS Code to launch the Extension Development Host. With a Java file active, run **Java Pseudo: Open Pseudocode** to open its unchanged source in a read-only virtual document beside it.
