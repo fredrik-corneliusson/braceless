@@ -13,9 +13,13 @@ function nodeAt(node: JavaSyntaxNode, range: SourceRange): JavaSyntaxNode | unde
   if (node.startOffset === range.startOffset && node.endOffset === range.endOffset) {
     return node;
   }
-  return node.children.find((child) =>
-    child.startOffset <= range.startOffset && child.endOffset >= range.endOffset &&
-    nodeAt(child, range) !== undefined);
+  for (const child of node.children) {
+    if (child.startOffset <= range.startOffset && child.endOffset >= range.endOffset) {
+      const match = nodeAt(child, range);
+      if (match) return match;
+    }
+  }
+  return undefined;
 }
 
 function unwrap(node: JavaSyntaxNode): JavaSyntaxNode {
@@ -58,6 +62,68 @@ function gapLines(source: string, startOffset: number, endOffset: number, indent
   return lines;
 }
 
+function renderSwitch(source: string, node: JavaSyntaxNode, indent: string): string {
+  if (!node.condition || !node.switchBlock || !node.switchArms?.length) {
+    return source.slice(node.startOffset, node.endOffset);
+  }
+  const selector = source.slice(node.condition.startOffset, node.condition.endOffset).trim();
+  const armIndent = indent + INDENT;
+  const lines: string[] = [];
+  let cursor = node.switchBlock.startOffset + 1;
+  for (const arm of node.switchArms) {
+    lines.push(...gapLines(source, cursor, arm.startOffset, armIndent));
+    if (!arm.body || !arm.bodyKind || !arm.labels.length || arm.bodyKind === 'other') {
+      lines.push(raw(source, arm, armIndent));
+      cursor = arm.endOffset;
+      continue;
+    }
+    const labels = arm.labels.map((label) => source.slice(label.startOffset, label.endOffset).trim());
+    const heading = labels.map((label) => `${armIndent}${label}${arm.separator === 'arrow' ? ' ->' : ':'}`);
+    const bodyNode = nodeAt(node, arm.body);
+    if (arm.bodyKind === 'expression') {
+      heading[heading.length - 1] += ` ${source.slice(arm.body.startOffset, arm.body.endOffset).trim()}`;
+    } else {
+      const bodyIndent = armIndent + INDENT;
+      const body = arm.bodyKind === 'block' && bodyNode
+        ? renderBlock(source, bodyNode, bodyIndent)
+        : arm.bodyKind === 'statements' && bodyNode
+          ? renderStatements(source, bodyNode, arm.body.startOffset, arm.body.endOffset, bodyIndent)
+          : raw(source, arm.body, bodyIndent);
+      heading.push(body);
+    }
+    lines.push(...heading);
+    cursor = arm.endOffset;
+  }
+  lines.push(...gapLines(source, cursor, node.switchBlock.endOffset - 1, armIndent));
+  return `switch ${selector}:\n${lines.join('\n')}`;
+}
+
+function embeddedSwitches(node: JavaSyntaxNode): JavaSyntaxNode[] {
+  const switches: JavaSyntaxNode[] = [];
+  const collect = (current: JavaSyntaxNode): void => {
+    for (const child of current.children) {
+      if (child.kind === 'switch') switches.push(child);
+      else collect(child);
+    }
+  };
+  collect(node);
+  return switches.sort((a, b) => a.startOffset - b.startOffset);
+}
+
+function renderTerminated(source: string, node: JavaSyntaxNode, indent: string): string {
+  const lineStart = source.lastIndexOf('\n', node.startOffset - 1) + 1;
+  const sourceIndent = source.slice(lineStart, node.startOffset).match(/^\s*/)?.[0] ?? '';
+  let result = '';
+  let cursor = node.startOffset;
+  for (const expression of embeddedSwitches(node)) {
+    result += source.slice(cursor, expression.startOffset) +
+      renderSwitch(source, expression, indent || sourceIndent);
+    cursor = expression.endOffset;
+  }
+  result += source.slice(cursor, node.endOffset);
+  return indent + result.trim().replace(/;$/, '');
+}
+
 function renderStatement(source: string, statement: JavaSyntaxNode, indent: string): string {
   const node = unwrap(statement);
   if ((node.kind === 'if' || node.kind === 'foreach' || node.kind === 'while') &&
@@ -80,8 +146,8 @@ function renderStatement(source: string, statement: JavaSyntaxNode, indent: stri
     }
     return result;
   }
-  if (node.kind === 'return' || node.kind === 'expression' || node.kind === 'variable') {
-    return indent + source.slice(node.startOffset, node.endOffset).trim().replace(/;$/, '');
+  if (node.kind === 'return' || node.kind === 'yield' || node.kind === 'expression' || node.kind === 'variable') {
+    return renderTerminated(source, node, indent);
   }
   if (node.kind === 'block') {
     return renderBlock(source, node, indent);
@@ -91,6 +157,12 @@ function renderStatement(source: string, statement: JavaSyntaxNode, indent: stri
 }
 
 function renderBlock(source: string, block: JavaSyntaxNode, indent: string): string {
+  return renderStatements(source, block, block.startOffset + 1, block.endOffset - 1, indent);
+}
+
+function renderStatements(
+  source: string, container: JavaSyntaxNode, startOffset: number, endOffset: number, indent: string
+): string {
   const statements: JavaSyntaxNode[] = [];
   const collect = (node: JavaSyntaxNode): void => {
     for (const child of node.children) {
@@ -98,16 +170,16 @@ function renderBlock(source: string, block: JavaSyntaxNode, indent: string): str
       else if (child.kind !== 'block') collect(child);
     }
   };
-  collect(block);
+  collect(container);
   statements.sort((a, b) => a.startOffset - b.startOffset);
   const lines: string[] = [];
-  let cursor = block.startOffset + 1;
+  let cursor = startOffset;
   for (const statement of statements) {
     lines.push(...gapLines(source, cursor, statement.startOffset, indent));
     lines.push(renderStatement(source, statement, indent));
     cursor = statement.endOffset;
   }
-  lines.push(...gapLines(source, cursor, block.endOffset - 1, indent));
+  lines.push(...gapLines(source, cursor, endOffset, indent));
   return lines.join('\n');
 }
 
@@ -139,7 +211,7 @@ export function renderPseudo(source: string, tree: JavaSyntaxNode): string {
     result += source.slice(cursor, declaration.startOffset) +
       (declaration.kind === 'method'
         ? renderMethod(source, declaration)
-        : source.slice(declaration.startOffset, declaration.endOffset).replace(/;$/, ''));
+        : renderTerminated(source, declaration, ''));
     cursor = declaration.endOffset;
   }
   return result + source.slice(cursor);

@@ -26,7 +26,19 @@ public class ExtensionSample {
         return total;
     }
 
+    public static String describeScore(int value) {
+        return switch (value) {
+            case 0 -> "none";
+            case 1, 2 -> "small";
+            default -> {
+                String label = "score: ";
+                yield label + value;
+            }
+        };
+    }
+
     public static void main(String[] args) {
-        System.out.println(score(new int[] { 5, 12, 20 }, 10));
+        int result = score(new int[] { 5, 12, 20 }, 10);
+        System.out.println(describeScore(result));
     }
 }
