@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
+import { parseJava, JavaSyntaxNode } from './javaParser';
 
 const SCHEME = 'java-pseudocode';
 const COMMAND = 'javaPseudocode.open';
 
 export function activate(context: vscode.ExtensionContext): void {
   const sources = new Map<string, vscode.Uri>();
+  const syntaxTrees = new Map<string, JavaSyntaxNode>();
   const changed = new vscode.EventEmitter<vscode.Uri>();
 
   const provider: vscode.TextDocumentContentProvider = {
@@ -14,7 +16,14 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!source) {
         return '';
       }
-      return (await vscode.workspace.openTextDocument(source)).getText();
+      const text = (await vscode.workspace.openTextDocument(source)).getText();
+      try {
+        syntaxTrees.set(uri.toString(), await parseJava(text));
+      } catch {
+        // A Java file may be incomplete while it is being edited.
+        syntaxTrees.delete(uri.toString());
+      }
+      return text;
     },
   };
 
