@@ -1,0 +1,36 @@
+{
+  "name": "java-pseudocode-view",
+  "displayName": "Java Pseudocode View",
+  "description": "A read-only, Python-like view of Java source code.",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "vscode": "^1.138.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onCommand:javaPseudocode.open"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "javaPseudocode.open",
+        "title": "Open Pseudocode",
+        "category": "Java Pseudo"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p .",
+    "check": "tsc -p . --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.0",
+    "@types/vscode": "^1.138.0",
+    "typescript": "^5.9.3"
+  }
+}
