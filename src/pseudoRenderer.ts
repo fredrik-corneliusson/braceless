@@ -40,7 +40,8 @@ function raw(source: string, range: SourceRange, indent: string): string {
 
 function renderStatement(source: string, statement: JavaSyntaxNode, indent: string): string {
   const node = unwrap(statement);
-  if (node.kind === 'if' && node.condition && node.branches?.length) {
+  if ((node.kind === 'if' || node.kind === 'foreach' || node.kind === 'while') &&
+      node.condition && node.branches?.length) {
     const condition = source.slice(node.condition.startOffset, node.condition.endOffset).trim();
     const renderBranch = (branch: SourceRange): string => {
       const branchNode = nodeAt(node, branch);
@@ -52,8 +53,9 @@ function renderStatement(source: string, statement: JavaSyntaxNode, indent: stri
         ? renderBlock(source, body, indent + INDENT)
         : renderStatement(source, branchNode, indent + INDENT);
     };
-    let result = `${indent}if ${condition}:\n${renderBranch(node.branches[0])}`;
-    if (node.branches[1]) {
+    const keyword = node.kind === 'foreach' ? 'for' : node.kind;
+    let result = `${indent}${keyword} ${condition}:\n${renderBranch(node.branches[0])}`;
+    if (node.kind === 'if' && node.branches[1]) {
       result += `\n${indent}else:\n${renderBranch(node.branches[1])}`;
     }
     return result;
@@ -64,7 +66,7 @@ function renderStatement(source: string, statement: JavaSyntaxNode, indent: stri
   if (node.kind === 'block') {
     return renderBlock(source, node, indent);
   }
-  // Unsupported syntax, including loops, stays in Java form.
+  // Unsupported syntax, including basic for and do loops, stays in Java form.
   return raw(source, statement, indent);
 }
 

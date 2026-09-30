@@ -23,7 +23,7 @@ test('identifies methods, if statements, loops, and return statements', async ()
 
   const tree = await parseJava(source);
   for (const [kind, expectedCount] of [
-    ['method', 1], ['if', 1], ['for', 2],
+    ['method', 1], ['if', 1], ['for', 1], ['foreach', 1],
     ['while', 1], ['do', 1], ['return', 2],
   ]) {
     assert.equal(findNodes(tree, kind).length, expectedCount, kind);

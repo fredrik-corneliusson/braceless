@@ -5,7 +5,7 @@ interface ParserNode {
 }
 
 export type JavaNodeKind = 'other' | 'method' | 'block' | 'statement' |
-  'if' | 'expression' | 'for' | 'while' | 'do' | 'return';
+  'if' | 'expression' | 'for' | 'foreach' | 'while' | 'do' | 'return';
 
 export interface SourceRange {
   startOffset: number;
@@ -26,7 +26,7 @@ const kinds: Record<string, JavaNodeKind> = {
   ifStatement: 'if',
   expressionStatement: 'expression',
   basicForStatement: 'for',
-  enhancedForStatement: 'for',
+  enhancedForStatement: 'foreach',
   whileStatement: 'while',
   doStatement: 'do',
   returnStatement: 'return',
@@ -53,15 +53,26 @@ function toSyntaxNode(node: ParserNode): JavaSyntaxNode {
     ? node.location.endOffset! + 1
     : children.at(-1)?.endOffset ?? startOffset;
 
-  const condition = node.name === 'ifStatement' && node.children.expression?.[0];
-  const branches = node.name === 'ifStatement' ? node.children.statement : undefined;
+  const controlFlow = ['ifStatement', 'whileStatement', 'enhancedForStatement'].includes(node.name);
+  const expression = controlFlow
+    ? node.children.expression?.[0] as ParserNode | undefined
+    : undefined;
+  const firstHeader = node.name === 'enhancedForStatement'
+    ? node.children.localVariableDeclaration?.[0] as ParserNode | undefined
+    : undefined;
+  const condition: SourceRange | undefined = expression
+    ? firstHeader
+      ? { startOffset: range(firstHeader).startOffset, endOffset: range(expression).endOffset }
+      : range(expression)
+    : undefined;
+  const branches = controlFlow ? node.children.statement : undefined;
 
   return {
     kind: kinds[node.name] ?? 'other',
     startOffset,
     endOffset,
     children,
-    ...(condition ? { condition: range(condition as ParserNode) } : {}),
+    ...(condition ? { condition } : {}),
     ...(branches ? { branches: branches.map((branch) => range(branch as ParserNode)) } : {}),
   };
 }

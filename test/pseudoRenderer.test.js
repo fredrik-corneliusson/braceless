@@ -79,6 +79,52 @@ test('renders a compact if block with an expression statement', async () => {
 }`);
 });
 
+test('renders enhanced for with Java types and iterable expressions intact', async () => {
+  const source = `class Example {
+    void process(Order order) {
+        for (Item item : order.getItems()) {
+            processItem(item);
+        }
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    void process(Order order):
+        for Item item : order.getItems():
+            processItem(item)
+}`);
+});
+
+test('renders while with its Java condition intact', async () => {
+  const source = `class Example {
+    void run(int remaining) {
+        while (remaining > 0 && isReady()) {
+            remaining--;
+        }
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    void run(int remaining):
+        while remaining > 0 && isReady():
+            remaining--
+}`);
+});
+
+test('renders unbraced enhanced for and while bodies', async () => {
+  const source = `class Example {
+    void run(int[] values, int remaining) {
+        for (int value : values) use(value);
+        while (remaining > 0) remaining--;
+    }
+}`;
+  assert.equal(await render(source), `class Example {
+    void run(int[] values, int remaining):
+        for int value : values:
+            use(value)
+        while remaining > 0:
+            remaining--
+}`);
+});
+
 test('preserves unsupported declarations and loops as readable Java', async () => {
   const source = `class Example {
     int count(int limit) {
